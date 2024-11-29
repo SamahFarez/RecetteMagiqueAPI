@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const SPOONACULAR_API_KEY = 'e1b5c0675f514fcb86cbecbeb5fbee3f'; // Your API key
+const SPOONACULAR_API_KEY = '23a7bcbc7632490a9d0cbdd754f79fcc'; // Your API key
 
 // List of common meat ingredients to check against
 const meatKeywords = ['chicken', 'beef', 'pork', 'lamb', 'turkey', 'duck', 'fish', 'seafood'];
