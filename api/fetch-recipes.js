@@ -1,4 +1,3 @@
-// api/fetch-recipes.js
 const axios = require('axios');
 
 const SPOONACULAR_API_KEY = 'e1b5c0675f514fcb86cbecbeb5fbee3f'; // Your API key
@@ -14,6 +13,18 @@ const filterNonVegetarianIngredients = (ingredients) => {
 // Function to clean recipe names
 const cleanRecipeName = (title) => {
     return title.replace(/^How to Make\s+/i, ''); // Remove 'How to' at the beginning of the title
+};
+
+// Function to check for API rate limit errors
+const checkRateLimit = (response) => {
+    const remaining = response.headers['x-ratelimit-remaining'];
+    const reset = response.headers['x-ratelimit-reset'];
+
+    if (remaining && remaining <= 0) {
+        const resetTime = new Date(reset * 1000);
+        return `API rate limit exceeded. Try again after ${resetTime.toLocaleString()}.`;
+    }
+    return null;
 };
 
 module.exports = async (req, res) => {
@@ -40,6 +51,12 @@ module.exports = async (req, res) => {
             `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${ingredientsString}&apiKey=${SPOONACULAR_API_KEY}${diet ? `&diet=${diet}` : ''}`
         );
 
+        // Check if rate limit was exceeded
+        const rateLimitError = checkRateLimit(response);
+        if (rateLimitError) {
+            return res.status(429).json({ error: rateLimitError });
+        }
+
         if (response.data.length === 0) {
             return res.status(404).send('No recipes found.');
         }
@@ -47,8 +64,14 @@ module.exports = async (req, res) => {
         // Prepare output for the browser
         const detailedRecipes = await Promise.all(response.data.map(async recipe => {
             const recipeDetailResponse = await axios.get(`https://api.spoonacular.com/recipes/${recipe.id}/information?apiKey=${SPOONACULAR_API_KEY}`);
+
+            // Check if rate limit was exceeded for detailed recipe fetch
+            const rateLimitErrorDetail = checkRateLimit(recipeDetailResponse);
+            if (rateLimitErrorDetail) {
+                return null; // Skip this recipe if rate limit is exceeded for details
+            }
+
             let { title, readyInMinutes, instructions, extendedIngredients } = recipeDetailResponse.data;
-            
             title = cleanRecipeName(title);
             const usedIngredients = extendedIngredients.map(ing => ing.name).join(', ');
 
